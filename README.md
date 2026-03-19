@@ -1,4 +1,4 @@
-<img width="2255" height="1436" alt="Screenshot_3" src="https://github.com/user-attachments/assets/3d95c56b-bfb4-4681-9fa1-6319f62d76f0" /># Chart digitizer
+<img width="2255" height="1436" alt="Screenshot_2" src="https://github.com/user-attachments/assets/227527c4-9f4a-4572-9d17-21b321b67529" /># Chart digitizer
 
 Приложение для извлечения числовых данных из изображений двумерных графиков. Ручной режим работы с визуальными инструментами для приближенного оцифровывания кривых и точек. Прототип.
 
