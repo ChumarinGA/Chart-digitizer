@@ -24,6 +24,13 @@
 - Python 3.10+
 - Windows 10/11
 
+## Копирование репозитория через Git
+
+```bash
+git clone https://github.com/ChumarinGA/Chart-digitizer.git
+cd Chart-digitizer
+```
+
 ## Установка
 
 ```bash
