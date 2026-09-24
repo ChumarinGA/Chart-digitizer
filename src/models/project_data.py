@@ -19,7 +19,7 @@ class AppSettings:
     # Calibration
     x_scale: ScaleType = ScaleType.LINEAR
     y_scale: ScaleType = ScaleType.LINEAR
-    n_calibration_points: int = 2
+    n_calibration_points: int = 3
 
     # Curves
     segmentation_sensitivity: float = 0.5
@@ -48,11 +48,34 @@ class ProjectState:
     image: Optional[np.ndarray] = None  # loaded BGR image
 
     # Plot area crop rectangle (x, y, w, h) in pixel coordinates
-    crop_rect: Optional[tuple[int, int, int, int]] = None
+    # Continuous scene coordinates; half-pixels are meaningful for the centre
+    # of even-width frame strokes.
+    crop_rect: Optional[tuple[float, float, float, float]] = None
 
     calibration: CalibrationResult = field(default_factory=CalibrationResult)
     series: list[SeriesData] = field(default_factory=list)
     settings: AppSettings = field(default_factory=AppSettings)
+
+    # Lossless live-editor state.  Data-space ``series`` remains the portable
+    # representation, while these fields preserve unfinished calibration and
+    # exact pixel placements across Save/Load.
+    calibration_anchors: list[tuple[float, float, Optional[float], Optional[float], str]] = field(
+        default_factory=list
+    )
+    scatter_points_px: list[list[tuple[float, float]]] = field(default_factory=list)
+    curve_points_px: list[list[tuple[float, float]]] = field(default_factory=list)
+
+    # Visual editor state.  Shape and Qt pen-style names are stored as plain
+    # strings so the data model does not depend on the GUI package.
+    scatter_point_styles: list[list[tuple[str, float]]] = field(default_factory=list)
+    curve_point_styles: list[list[tuple[str, float]]] = field(default_factory=list)
+    curve_visual_styles: list[tuple[str, float, str]] = field(default_factory=list)
+    scatter_default_point_style: tuple[str, float] = ("CIRCLE", 5.0)
+    curve_default_point_style: tuple[str, float] = ("CIRCLE", 4.0)
+    # Percentage used only for the currently active Scatter/Curve target.
+    scatter_active_fill_opacity: int = 15
+    curve_active_fill_opacity: int = 15
+    curve_default_thickness: float = 2.0
 
     # Combined export mode
     combined_mode: CombinedMode = CombinedMode.UNION_X

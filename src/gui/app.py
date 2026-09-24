@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
-_STYLE_PATH = Path(__file__).resolve().parent.parent.parent / "resources" / "styles" / "dark.qss"
+_STYLE_PATH = Path(__file__).resolve().parent.parent / "resources" / "styles" / "dark.qss"
 
 
 def run_application(argv: list[str] | None = None) -> int:

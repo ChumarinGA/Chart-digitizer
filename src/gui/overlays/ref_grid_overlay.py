@@ -31,7 +31,7 @@ class RefGridOverlay(QGraphicsObject):
     def update_grid(
         self,
         calibration: CalibrationResult,
-        crop_rect: tuple[int, int, int, int],
+        crop_rect: tuple[float, float, float, float],
         x_refs: list[float],
         y_refs: list[float],
     ) -> None:

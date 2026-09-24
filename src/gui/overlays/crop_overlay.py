@@ -41,9 +41,13 @@ class CropOverlay(QGraphicsObject):
     def __init__(self, x: float, y: float, w: float, h: float,
                  parent: QGraphicsItem | None = None) -> None:
         super().__init__(parent)
+        # Above grid/curve overlays so the confirmed work-area boundary stays
+        # genuinely visible, but below draggable points (z=20).
+        self.setZValue(15)
         self._rect = QRectF(x, y, w, h)
 
         self._border_pen = QPen(QColor(0, 200, 100), 2, Qt.PenStyle.DashLine)
+        self._border_pen.setCosmetic(True)
         self._fill_brush = QBrush(QColor(0, 200, 100, 25))
 
         self._rect_item = QGraphicsRectItem(self._rect, self)
@@ -62,9 +66,10 @@ class CropOverlay(QGraphicsObject):
     def paint(self, painter, option, widget=None) -> None:
         pass
 
-    def get_rect(self) -> tuple[int, int, int, int]:
+    def get_rect(self) -> tuple[float, float, float, float]:
+        """Return continuous scene coordinates without truncating sub-pixels."""
         r = self._rect
-        return (int(r.x()), int(r.y()), int(r.width()), int(r.height()))
+        return (r.x(), r.y(), r.width(), r.height())
 
     def get_rectf(self) -> QRectF:
         return QRectF(self._rect)
@@ -83,6 +88,7 @@ class CropOverlay(QGraphicsObject):
     def set_confirmed_style(self, opacity: int = 30) -> None:
         """Switch to semi-transparent yellow for confirmed state."""
         self._border_pen = QPen(QColor(220, 200, 0, 180), 2, Qt.PenStyle.DashLine)
+        self._border_pen.setCosmetic(True)
         self._fill_brush = QBrush(QColor(255, 255, 0, opacity))
         self._rect_item.setPen(self._border_pen)
         self._rect_item.setBrush(self._fill_brush)
@@ -90,6 +96,7 @@ class CropOverlay(QGraphicsObject):
     def set_editing_style(self) -> None:
         """Switch to green dashed for editing state."""
         self._border_pen = QPen(QColor(0, 200, 100), 2, Qt.PenStyle.DashLine)
+        self._border_pen.setCosmetic(True)
         self._fill_brush = QBrush(QColor(0, 200, 100, 25))
         self._rect_item.setPen(self._border_pen)
         self._rect_item.setBrush(self._fill_brush)

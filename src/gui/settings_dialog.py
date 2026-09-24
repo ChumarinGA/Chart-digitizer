@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QDoubleSpinBox,
     QFormLayout,
+    QLabel,
     QSpinBox,
     QTabWidget,
     QVBoxLayout,
@@ -48,31 +49,38 @@ class SettingsDialog(QDialog):
         self._n_cal = QSpinBox()
         self._n_cal.setRange(2, 10)
         self._n_cal.setValue(settings.n_calibration_points)
-        cal_form.addRow("Calibration points:", self._n_cal)
+        cal_form.addRow("Recommended anchors / axis:", self._n_cal)
         tabs.addTab(cal_tab, "Calibration")
 
         # --- Curves tab ---
         curves_tab = QWidget()
         curves_form = QFormLayout(curves_tab)
+        automatic_note = QLabel("Automatic image extraction is not implemented in this build.")
+        automatic_note.setWordWrap(True)
+        curves_form.addRow(automatic_note)
 
         self._seg_sens = QDoubleSpinBox()
         self._seg_sens.setRange(0.0, 1.0)
         self._seg_sens.setSingleStep(0.05)
         self._seg_sens.setValue(settings.segmentation_sensitivity)
+        self._seg_sens.setEnabled(False)
         curves_form.addRow("Segmentation sensitivity:", self._seg_sens)
 
         self._min_curve = QSpinBox()
         self._min_curve.setRange(5, 1000)
         self._min_curve.setValue(settings.min_curve_length)
+        self._min_curve.setEnabled(False)
         curves_form.addRow("Min curve length (px):", self._min_curve)
 
         self._max_thickness = QSpinBox()
         self._max_thickness.setRange(1, 100)
         self._max_thickness.setValue(settings.max_line_thickness)
+        self._max_thickness.setEnabled(False)
         curves_form.addRow("Max line thickness (px):", self._max_thickness)
 
         self._skel_check = QCheckBox()
         self._skel_check.setChecked(settings.skeletonize)
+        self._skel_check.setEnabled(False)
         curves_form.addRow("Skeletonize:", self._skel_check)
 
         self._step_dx = QDoubleSpinBox()
@@ -84,22 +92,34 @@ class SettingsDialog(QDialog):
         # --- Markers tab ---
         markers_tab = QWidget()
         markers_form = QFormLayout(markers_tab)
+        marker_note = QLabel(
+            "Local, confirmation-first marker-centre search is available for the active "
+            "Scatter/Curve point. Area limits are reserved for future batch detection."
+        )
+        marker_note.setWordWrap(True)
+        markers_form.addRow(marker_note)
 
         self._min_marker = QSpinBox()
         self._min_marker.setRange(1, 10000)
         self._min_marker.setValue(settings.min_marker_area)
+        self._min_marker.setEnabled(False)
         markers_form.addRow("Min marker area (px²):", self._min_marker)
 
         self._max_marker = QSpinBox()
         self._max_marker.setRange(10, 50000)
         self._max_marker.setValue(settings.max_marker_area)
+        self._max_marker.setEnabled(False)
         markers_form.addRow("Max marker area (px²):", self._max_marker)
 
         self._marker_sens = QDoubleSpinBox()
-        self._marker_sens.setRange(0.0, 1.0)
+        self._marker_sens.setRange(0.48, 1.0)
         self._marker_sens.setSingleStep(0.05)
         self._marker_sens.setValue(settings.marker_center_sensitivity)
-        markers_form.addRow("Centre sensitivity:", self._marker_sens)
+        self._marker_sens.setToolTip(
+            "Minimum detector quality required before a centre candidate is offered. "
+            "Higher values reject more ambiguous shapes."
+        )
+        markers_form.addRow("Min centre quality:", self._marker_sens)
         tabs.addTab(markers_tab, "Markers")
 
         # --- Manual mode tab ---

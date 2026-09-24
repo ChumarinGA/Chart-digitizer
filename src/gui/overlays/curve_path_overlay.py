@@ -12,10 +12,13 @@ class CurvePathOverlay(QGraphicsPathItem):
 
     def __init__(self, color: QColor = QColor(255, 80, 80),
                  thickness: float = 2.0,
-                 parent=None) -> None:
+                 parent=None,
+                 *,
+                 line_style: Qt.PenStyle = Qt.PenStyle.SolidLine) -> None:
         super().__init__(parent)
         self._color = color
-        self._thickness = thickness
+        self._thickness = max(0.5, thickness)
+        self._line_style = line_style
         self.setZValue(10)
         self.setBrush(Qt.BrushStyle.NoBrush)
         self._update_pen()
@@ -28,14 +31,28 @@ class CurvePathOverlay(QGraphicsPathItem):
         self._thickness = max(0.5, t)
         self._update_pen()
 
+    def set_line_style(self, style: Qt.PenStyle) -> None:
+        """Set the Qt pen pattern used to draw this curve.
+
+        ``Qt.PenStyle.SolidLine`` remains the default, so existing projects
+        and callers retain their previous appearance.
+        """
+        self._line_style = Qt.PenStyle(style)
+        self._update_pen()
+
     def color(self) -> QColor:
         return self._color
 
     def thickness(self) -> float:
         return self._thickness
 
+    def line_style(self) -> Qt.PenStyle:
+        return self._line_style
+
     def _update_pen(self) -> None:
-        self.setPen(QPen(self._color, self._thickness))
+        pen = QPen(self._color, self._thickness)
+        pen.setStyle(self._line_style)
+        self.setPen(pen)
 
     def update_from_points(self, points: list[QPointF]) -> None:
         """Rebuild the smooth path through *ordered* pixel-coordinate points."""
@@ -69,4 +86,18 @@ class CurvePathOverlay(QGraphicsPathItem):
             )
             path.cubicTo(cp1, cp2, p2)
 
+        self.setPath(path)
+
+    def update_from_polyline(self, points: list[QPointF]) -> None:
+        """Draw samples produced by the shared preview/export curve engine.
+
+        The interpolation itself deliberately lives outside this graphics
+        item.  This keeps the on-screen preview mathematically identical to
+        exported values, including on logarithmic axes.
+        """
+        path = QPainterPath()
+        if points:
+            path.moveTo(points[0])
+            for point in points[1:]:
+                path.lineTo(point)
         self.setPath(path)

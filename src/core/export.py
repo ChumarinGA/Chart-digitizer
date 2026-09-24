@@ -13,7 +13,7 @@ from scipy.interpolate import interp1d
 
 from src.models.project_data import ProjectState
 from src.models.series_data import SeriesData
-from src.models.types import CombinedMode
+from src.models.types import CombinedMode, SeriesKind
 
 
 def export_to_excel(
@@ -70,10 +70,22 @@ def _write_combined(
     for sd in series_list:
         xs = np.array(sd.xs)
         ys = np.array(sd.ys)
-        if len(xs) >= 2:
+        if sd.kind == SeriesKind.DISCRETE and mode != CombinedMode.INTERPOLATION:
+            # Scatter observations are not a continuous function.  In the
+            # non-interpolation modes, keep cells blank unless that X was
+            # actually observed instead of inventing intermediate values.
+            def exact_only(value, _xs=xs, _ys=ys):
+                matches = np.flatnonzero(np.isclose(_xs, value, rtol=1e-12, atol=1e-15))
+                return _ys[matches[0]] if matches.size else np.nan
+            interps.append(exact_only)
+        elif len(xs) >= 2:
             interps.append(interp1d(xs, ys, kind="linear", bounds_error=False, fill_value=np.nan))
         elif len(xs) == 1:
-            interps.append(lambda _x, _y=ys[0]: _y)
+            interps.append(
+                lambda value, _x=xs[0], _y=ys[0]:
+                _y if math.isclose(float(value), float(_x), rel_tol=1e-12, abs_tol=1e-15)
+                else np.nan
+            )
         else:
             interps.append(lambda _x: np.nan)
 
@@ -112,8 +124,12 @@ def _write_metadata(wb: openpyxl.Workbook, project: ProjectState) -> None:
         ("Parameter", "Value"),
         ("source_file", str(project.image_path or "")),
         ("date", datetime.now().isoformat(timespec="seconds")),
-        ("x_scale", project.settings.x_scale.name),
-        ("y_scale", project.settings.y_scale.name),
+        ("x_scale", project.calibration.x_axis.scale.name
+         if project.calibration and project.calibration.x_axis._slope is not None
+         else project.settings.x_scale.name),
+        ("y_scale", project.calibration.y_axis.scale.name
+         if project.calibration and project.calibration.y_axis._slope is not None
+         else project.settings.y_scale.name),
         ("series_count", len(project.series)),
     ]
     for sd in project.series:
