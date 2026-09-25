@@ -1,4 +1,4 @@
-"""Smooth spline overlay drawn through ordered control points."""
+"""Graphics overlay for an already sampled Curve preview."""
 
 from __future__ import annotations
 
@@ -8,7 +8,13 @@ from PySide6.QtWidgets import QGraphicsPathItem
 
 
 class CurvePathOverlay(QGraphicsPathItem):
-    """Draws a Catmull-Rom spline (as cubic Bezier segments) through control points."""
+    """Draw a styled curve path without owning its interpolation algorithm.
+
+    The active Curve workflow samples :class:`CurveInterpolator` and passes
+    the resulting pixel polyline to :meth:`update_from_polyline`.  Keeping the
+    graphics item unaware of PCHIP makes preview and export share one
+    mathematical implementation.
+    """
 
     def __init__(self, color: QColor = QColor(255, 80, 80),
                  thickness: float = 2.0,
@@ -55,7 +61,11 @@ class CurvePathOverlay(QGraphicsPathItem):
         self.setPen(pen)
 
     def update_from_points(self, points: list[QPointF]) -> None:
-        """Rebuild the smooth path through *ordered* pixel-coordinate points."""
+        """Draw the legacy Catmull–Rom path used by older external callers.
+
+        The application itself no longer calls this compatibility method;
+        Curve preview uses :meth:`update_from_polyline` instead.
+        """
         path = QPainterPath()
         n = len(points)
         if n == 0:

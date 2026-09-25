@@ -5,6 +5,10 @@ import numpy as np
 import pytest
 
 from src.core.plot_area import detect_plot_area, refine_frame_centerlines
+from src.core.plot_area.detection import detect_plot_area as detect_plot_area_from_module
+from src.core.plot_area.frame_refinement import (
+    refine_frame_centerlines as refine_frame_centerlines_from_module,
+)
 
 
 def _frame_image(thickness: int, *, noisy: bool = False) -> tuple[np.ndarray, tuple[float, ...]]:
@@ -52,6 +56,11 @@ def _assert_rect_close(actual: tuple[float, ...], expected: tuple[float, ...]) -
         expected[1] + expected[3],
     )
     assert np.max(np.abs(np.subtract(actual_sides, expected_sides))) <= 0.75
+
+
+def test_package_keeps_the_original_public_imports() -> None:
+    assert detect_plot_area is detect_plot_area_from_module
+    assert refine_frame_centerlines is refine_frame_centerlines_from_module
 
 
 @pytest.mark.parametrize("thickness", [1, 4, 7])

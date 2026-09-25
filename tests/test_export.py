@@ -47,3 +47,15 @@ def test_metadata_uses_actual_calibration_scale(tmp_path) -> None:
     metadata = dict(workbook["Metadata"].iter_rows(min_row=2, values_only=True))
     assert metadata["x_scale"] == "LOG"
     assert metadata["y_scale"] == "LINEAR"
+
+
+def test_export_does_not_reorder_live_series(tmp_path) -> None:
+    project = ProjectState()
+    project.series = [
+        _series(1, SeriesKind.DISCRETE, [(2.0, 20.0), (0.0, 0.0), (1.0, 10.0)])
+    ]
+    original_order = [(point.x, point.y) for point in project.series[0].points]
+
+    export_to_excel(project, tmp_path / "stable-editor-state.xlsx")
+
+    assert [(point.x, point.y) for point in project.series[0].points] == original_order

@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (
 )
 
 from src.gui.image_canvas import ImageCanvas
-from src.gui.mode_panel import ModePanel
 from src.gui.start_screen import StartScreen
+from src.gui.workspace.panel import ModePanel
 from src.models.project_data import ProjectState
 
 
@@ -207,7 +207,7 @@ class MainWindow(QMainWindow):
         msg = f"Pixel: ({px:.1f}, {py:.1f})"
         try:
             cal = self._project.calibration
-            if cal.x_axis._slope is not None:
+            if cal.is_built:
                 dx, dy = cal.pixel_to_data(px, py)
                 msg += f"  |  Data: ({dx:.4g}, {dy:.4g})"
         except Exception:
@@ -217,7 +217,7 @@ class MainWindow(QMainWindow):
     # ---- settings / project ----
 
     def _open_settings(self) -> None:
-        from src.gui.settings_dialog import SettingsDialog
+        from src.gui.dialogs.settings import SettingsDialog
         SettingsDialog(self._project.settings, self).exec()
         self._panel.apply_settings()
 

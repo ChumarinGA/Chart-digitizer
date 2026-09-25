@@ -2,7 +2,15 @@ import cv2
 import numpy as np
 import pytest
 
-from src.core.marker_center import estimate_marker_center
+from src.core.marker_center import MarkerCenterResult, estimate_marker_center
+
+
+def test_package_keeps_the_public_marker_center_api() -> None:
+    result = MarkerCenterResult(1.0, 2.0, 0.75, True, "candidate")
+
+    assert result.candidate_x == 1.0
+    assert result.candidate_y == 2.0
+    assert callable(estimate_marker_center)
 
 
 def _white_image(*, colour: bool = False) -> np.ndarray:

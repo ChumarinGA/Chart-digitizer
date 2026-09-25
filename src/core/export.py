@@ -36,10 +36,11 @@ def export_to_excel(
 
     # --- Raw sheets ---
     for sd in project.series:
-        sd.sort_by_x()
         ws = wb.create_sheet(title=f"Series_{sd.index}")
         ws.append(["X", "Y"])
-        for pt in sd.points:
+        # Export order is deterministic, but exporting must not mutate the
+        # live editor state or reorder a caller's SeriesData in place.
+        for pt in sorted(sd.points):
             ws.append([pt.x, pt.y])
 
     # --- Combined sheet ---
@@ -125,10 +126,10 @@ def _write_metadata(wb: openpyxl.Workbook, project: ProjectState) -> None:
         ("source_file", str(project.image_path or "")),
         ("date", datetime.now().isoformat(timespec="seconds")),
         ("x_scale", project.calibration.x_axis.scale.name
-         if project.calibration and project.calibration.x_axis._slope is not None
+         if project.calibration and project.calibration.x_axis.is_built
          else project.settings.x_scale.name),
         ("y_scale", project.calibration.y_axis.scale.name
-         if project.calibration and project.calibration.y_axis._slope is not None
+         if project.calibration and project.calibration.y_axis.is_built
          else project.settings.y_scale.name),
         ("series_count", len(project.series)),
     ]

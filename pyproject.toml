@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta:__legacy__"
 name = "chart-digitizer"
 version = "0.2.0"
 description = "Desktop application for extracting numerical data from 2D chart images"
+readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "PySide6>=6.6",
@@ -14,6 +16,14 @@ dependencies = [
     "scipy>=1.12",
     "openpyxl>=3.1",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.urls]
+Repository = "https://github.com/ChumarinGA/Chart-digitizer"
 
 [project.scripts]
 chart-digitizer = "src.main:main"

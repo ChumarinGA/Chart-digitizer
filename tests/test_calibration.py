@@ -24,6 +24,8 @@ def test_linear_fit_and_legacy_coefficients() -> None:
     axis = _axis([(10.0, 0.0), (60.0, 5.0), (110.0, 10.0)])
 
     assert axis.n_points == 3
+    assert axis.is_built
+    assert axis.transformed_units_per_pixel == pytest.approx(0.1)
     assert axis.pixel_to_data(35.0) == pytest.approx(2.5)
     assert axis.data_to_pixel(7.5) == pytest.approx(85.0)
     assert axis._slope == pytest.approx(0.1)
@@ -65,6 +67,7 @@ def test_complete_calibration_roundtrip() -> None:
         ScaleType.LOG,
     )
 
+    assert calibration.is_built
     pixel = calibration.data_to_pixel(2.5, 1.0)
     assert pixel == pytest.approx((85.0, 200.0))
     assert calibration.pixel_to_data(*pixel) == pytest.approx((2.5, 1.0))
@@ -114,8 +117,11 @@ def test_failed_rebuild_clears_previous_fit_and_diagnostics() -> None:
 
     assert axis._slope is None
     assert axis._intercept is None
+    assert not axis.is_built
     assert axis.rmse_pixels is None
     assert axis.max_error_pixels is None
     assert axis.residuals_pixels == []
     with pytest.raises(RuntimeError, match="Call build"):
         axis.pixel_to_data(0.0)
+    with pytest.raises(RuntimeError, match="Call build"):
+        _ = axis.transformed_units_per_pixel

@@ -50,6 +50,33 @@ class AxisCalibration:
         """Number of reference points supplied for this axis."""
         return len(self.ref_points)
 
+    @property
+    def is_built(self) -> bool:
+        """Whether this axis has a complete, usable calibration fit."""
+        return all(
+            value is not None
+            for value in (
+                self._slope,
+                self._intercept,
+                self._pixel_per_value,
+                self._value_center,
+                self._pixel_center,
+            )
+        )
+
+    @property
+    def transformed_units_per_pixel(self) -> float:
+        """Calibration slope in linear or ``log10`` axis units per pixel.
+
+        For a linear axis this is the ordinary number of data units per
+        source pixel.  For a logarithmic axis it is the change in ``log10``
+        value per pixel.  The property is intentionally public so callers do
+        not need to inspect the legacy ``_slope`` storage field.
+        """
+        if not self.is_built or self._slope is None:
+            raise RuntimeError("Call build() before reading the calibration slope")
+        return self._slope
+
     def _reset_fit(self) -> None:
         """Remove both coefficients and diagnostics from a previous build."""
         self._slope = None
@@ -216,6 +243,11 @@ class CalibrationResult:
     """Complete calibration for both axes of a 2-D chart."""
     x_axis: AxisCalibration = field(default_factory=AxisCalibration)
     y_axis: AxisCalibration = field(default_factory=AxisCalibration)
+
+    @property
+    def is_built(self) -> bool:
+        """Whether both axes have complete, usable calibration fits."""
+        return self.x_axis.is_built and self.y_axis.is_built
 
     def build(self) -> None:
         self.x_axis.build()

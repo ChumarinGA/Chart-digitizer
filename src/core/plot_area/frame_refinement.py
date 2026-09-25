@@ -1,45 +1,12 @@
-"""Automatic detection of the rectangular plotting area inside a chart image."""
+"""Sub-pixel refinement of rough frame boundaries."""
 
 from __future__ import annotations
-
-from typing import Optional
 
 import cv2
 import numpy as np
 
-from src.core.preprocessing import detect_edges, to_grayscale
-
-
-Rect = tuple[float, float, float, float]
-
-
-def detect_plot_area(img: np.ndarray) -> Optional[Rect]:
-    """Try to find the rectangular plot area.
-
-    Returns (x, y, w, h) in pixel coordinates or *None* on failure.
-    Three strategies are tried in order:
-      1. Long Hough lines -> clustering
-      2. Contour detection -> largest rectangle
-      3. Non-white pixel bounding box (fallback)
-    """
-    result = _hough_strategy(img)
-    if result is None:
-        result = _contour_strategy(img)
-    if result is None:
-        result = _density_fallback(img)
-    if result is None:
-        return None
-    return refine_frame_centerlines(img, result)
-
-
-def crop_to_plot_area(img: np.ndarray, rect: Rect) -> np.ndarray:
-    """Crop between frame centre-lines, accepting sub-pixel rectangles."""
-    x, y, w, h = rect
-    x0 = max(0, int(round(x)))
-    y0 = max(0, int(round(y)))
-    x1 = min(img.shape[1], int(round(x + w)) + 1)
-    y1 = min(img.shape[0], int(round(y + h)) + 1)
-    return img[y0:y1, x0:x1].copy()
+from src.core.plot_area.geometry import Rect, normalise_rect
+from src.core.preprocessing import to_grayscale
 
 
 def refine_frame_centerlines(
@@ -48,18 +15,15 @@ def refine_frame_centerlines(
     *,
     search_radius: float | None = None,
 ) -> Rect:
-    """Refine a rough plot rectangle to the centre-lines of its frame.
+    """Refine a rough rectangle to the centre-lines of its frame strokes.
 
-    ``rect`` supplies approximate ``(left, top, width, height)`` coordinates.
     Each side is refined independently from a local darkness profile measured
-    along most of that side.  Taking the darkness-weighted centroid of the
-    detected stroke produces half-pixel coordinates for even-width strokes.
-
-    The rough coordinate is retained whenever the local profile has
-    insufficient contrast.  This makes the function safe for frameless plots
-    and for rectangles returned by the density fallback.
+    along most of that side.  A darkness-weighted centroid allows the result
+    to lie between source-pixel centres, which is required for even-width
+    strokes.  The rough coordinate is retained whenever local evidence is
+    insufficient.
     """
-    rough = _normalise_rect(rect)
+    rough = normalise_rect(rect)
     if not all(np.isfinite(value) for value in rough):
         return rough
     if img is None or not isinstance(img, np.ndarray) or img.size == 0:
@@ -107,26 +71,12 @@ def refine_frame_centerlines(
 
     refined = (left, top, right - left, bottom - top)
     if (
-        not all(np.isfinite(v) for v in refined)
+        not all(np.isfinite(value) for value in refined)
         or refined[2] <= 1.0
         or refined[3] <= 1.0
     ):
         return rough
-    return tuple(float(v) for v in refined)  # type: ignore[return-value]
-
-
-def _normalise_rect(rect: tuple[float, float, float, float]) -> Rect:
-    """Return a finite, consistently oriented floating-point rectangle."""
-    try:
-        x, y, w, h = (float(v) for v in rect)
-    except (TypeError, ValueError):
-        return (0.0, 0.0, 0.0, 0.0)
-    if not all(np.isfinite(v) for v in (x, y, w, h)):
-        return (x, y, w, h)
-    x2, y2 = x + w, y + h
-    left, right = sorted((x, x2))
-    top, bottom = sorted((y, y2))
-    return (left, top, right - left, bottom - top)
+    return tuple(float(value) for value in refined)  # type: ignore[return-value]
 
 
 def _refine_side(
@@ -215,105 +165,12 @@ def _stroke_centroid(
     if not components:
         return target
 
-    # Discard weak clutter first, then prefer the component nearest the rough
-    # boundary.  Thus a full-height internal grid line cannot steal the frame
-    # when both have comparable darkness.
     min_peak = baseline + 0.60 * contrast
     credible = [component for component in components if component[1] >= min_peak]
     if not credible:
         return target
     centre, _, _ = min(
         credible,
-        key=lambda component: (
-            abs(component[0] - target),
-            -component[2],
-        ),
+        key=lambda component: (abs(component[0] - target), -component[2]),
     )
     return centre
-
-
-# ---- Strategy 1: Hough lines ----
-
-def _hough_strategy(img: np.ndarray) -> Optional[tuple[int, int, int, int]]:
-    edges = detect_edges(img, low=50, high=150)
-    h, w = edges.shape[:2]
-    min_len = int(min(h, w) * 0.25)
-
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=80,
-                             minLineLength=min_len, maxLineGap=10)
-    if lines is None:
-        return None
-
-    h_lines: list[int] = []
-    v_lines: list[int] = []
-
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-        if abs(y2 - y1) < 5 and abs(x2 - x1) > min_len:
-            h_lines.append((y1 + y2) // 2)
-        elif abs(x2 - x1) < 5 and abs(y2 - y1) > min_len:
-            v_lines.append((x1 + x2) // 2)
-
-    if len(h_lines) < 2 or len(v_lines) < 2:
-        return None
-
-    top = min(h_lines)
-    bottom = max(h_lines)
-    left = min(v_lines)
-    right = max(v_lines)
-
-    if (bottom - top) < h * 0.15 or (right - left) < w * 0.15:
-        return None
-
-    return (left, top, right - left, bottom - top)
-
-
-# ---- Strategy 2: Contour detection ----
-
-def _contour_strategy(img: np.ndarray) -> Optional[tuple[int, int, int, int]]:
-    gray = to_grayscale(img)
-    _, thresh = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    if not contours:
-        return None
-
-    img_area = img.shape[0] * img.shape[1]
-    best: Optional[tuple[int, int, int, int]] = None
-    best_area = 0
-
-    for cnt in contours:
-        peri = cv2.arcLength(cnt, True)
-        approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
-        if len(approx) == 4:
-            x, y, w, h = cv2.boundingRect(approx)
-            area = w * h
-            if area > best_area and area > img_area * 0.1:
-                best = (x, y, w, h)
-                best_area = area
-
-    if best is not None:
-        return best
-
-    # Fallback: largest contour bounding rect
-    largest = max(contours, key=cv2.contourArea)
-    x, y, w, h = cv2.boundingRect(largest)
-    if w * h > img_area * 0.1:
-        return (x, y, w, h)
-    return None
-
-
-# ---- Strategy 3: density fallback ----
-
-def _density_fallback(img: np.ndarray) -> Optional[tuple[int, int, int, int]]:
-    gray = to_grayscale(img)
-    non_white = gray < 240
-    coords = np.argwhere(non_white)
-    if len(coords) < 100:
-        return None
-    y_min, x_min = coords.min(axis=0)
-    y_max, x_max = coords.max(axis=0)
-    margin = 5
-    x_min = max(0, x_min - margin)
-    y_min = max(0, y_min - margin)
-    return (x_min, y_min, x_max - x_min, y_max - y_min)
